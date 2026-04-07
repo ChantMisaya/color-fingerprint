@@ -7,15 +7,23 @@ from typing import Iterable
 
 from PIL import Image, ImageDraw, ImageFont
 
+FONT_CANDIDATES = (
+    "DejaVuSans.ttf",
+    "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+    "/System/Library/Fonts/Supplemental/Arial.ttf",
+    "/Library/Fonts/Arial.ttf",
+    "/System/Library/Fonts/SFNS.ttf",
+)
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Analyze a PNG image, build a solid color panel from the image colors, "
+            "Analyze a PNG/JPG image, build a solid color panel from the image colors, "
             "print RGB info on that panel, and stack it above the original image."
         )
     )
-    parser.add_argument("input", type=Path, help="Input PNG image path")
+    parser.add_argument("input", type=Path, help="Input PNG/JPG image path")
     parser.add_argument("output", type=Path, help="Output PNG image path")
     parser.add_argument(
         "--method",
@@ -83,12 +91,52 @@ def choose_text_color(fill_color: tuple[int, int, int]) -> tuple[int, int, int]:
     return (0, 0, 0) if brightness > 186 else (255, 255, 255)
 
 
-def load_font(image_height: int) -> ImageFont.ImageFont | ImageFont.FreeTypeFont:
-    font_size = max(24, image_height // 12)
-    try:
-        return ImageFont.truetype("DejaVuSans.ttf", font_size)
-    except OSError:
-        return ImageFont.load_default()
+def measure_text(
+    draw: ImageDraw.ImageDraw, text: str, font: ImageFont.ImageFont | ImageFont.FreeTypeFont
+) -> tuple[int, int, int, int]:
+    return draw.textbbox((0, 0), text, font=font)
+
+
+def load_scalable_font(size: int) -> ImageFont.ImageFont | ImageFont.FreeTypeFont:
+    for candidate in FONT_CANDIDATES:
+        try:
+            return ImageFont.truetype(candidate, size)
+        except OSError:
+            continue
+
+    return ImageFont.load_default()
+
+
+def load_font_for_width(
+    draw: ImageDraw.ImageDraw, text: str, image_size: tuple[int, int]
+) -> ImageFont.ImageFont | ImageFont.FreeTypeFont:
+    target_height = max(1, image_size[1] // 4)
+    max_width = max(1, image_size[0] * 9 // 10)
+
+    low = 1
+    high = max(2, image_size[1])
+    best_font = load_scalable_font(low)
+
+    if not isinstance(best_font, ImageFont.FreeTypeFont):
+        return best_font
+
+    while low <= high:
+        size = (low + high) // 2
+        font = load_scalable_font(size)
+        if not isinstance(font, ImageFont.FreeTypeFont):
+            break
+
+        bbox = measure_text(draw, text, font)
+        text_width = bbox[2] - bbox[0]
+        text_height = bbox[3] - bbox[1]
+
+        if text_height <= target_height and text_width <= max_width:
+            best_font = font
+            low = size + 1
+        else:
+            high = size - 1
+
+    return best_font
 
 
 def build_color_panel(
@@ -96,27 +144,15 @@ def build_color_panel(
 ) -> Image.Image:
     panel = Image.new("RGB", size, fill_color)
     draw = ImageDraw.Draw(panel)
-    font = load_font(size[1])
+    font = load_font_for_width(draw, label, size)
     text_color = choose_text_color(fill_color)
 
-    text_bbox = draw.textbbox((0, 0), label, font=font)
+    text_bbox = measure_text(draw, label, font)
     text_width = text_bbox[2] - text_bbox[0]
     text_height = text_bbox[3] - text_bbox[1]
 
-    x = (size[0] - text_width) / 2
-    y = (size[1] - text_height) / 2
-
-    padding_x = max(12, size[0] // 50)
-    padding_y = max(8, size[1] // 50)
-    background_box = (
-        x - padding_x,
-        y - padding_y,
-        x + text_width + padding_x,
-        y + text_height + padding_y,
-    )
-
-    overlay_color = (255, 255, 255) if text_color == (0, 0, 0) else (0, 0, 0)
-    draw.rounded_rectangle(background_box, radius=12, fill=overlay_color)
+    x = (size[0] - text_width) / 2 - text_bbox[0]
+    y = (size[1] - text_height) / 2 - text_bbox[1]
     draw.text((x, y), label, fill=text_color, font=font)
     return panel
 
@@ -134,8 +170,8 @@ def main() -> None:
     args = parse_args()
     background = parse_rgb(args.background)
 
-    if args.input.suffix.lower() != ".png":
-        raise SystemExit("Input file must be a PNG image")
+    if args.input.suffix.lower() not in {".png", ".jpg", ".jpeg"}:
+        raise SystemExit("Input file must be a PNG, JPG, or JPEG image")
 
     if args.output.suffix.lower() != ".png":
         raise SystemExit("Output file must be a PNG image")
@@ -149,7 +185,7 @@ def main() -> None:
     else:
         extracted_color = dominant_color(pixels)
 
-    label = f"RGB: {extracted_color[0]}, {extracted_color[1]}, {extracted_color[2]}"
+    label = "#{:02X}{:02X}{:02X}".format(*extracted_color)
     color_panel = build_color_panel(original_rgb.size, extracted_color, label)
     final_image = combine_images(color_panel, original_rgb)
 

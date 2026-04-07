@@ -1,6 +1,6 @@
 # color-fingerprint
 
-命令行工具：读取一张 PNG 图片，分析其颜色，生成一张与原图同尺寸的纯色图，在纯色图上打印 RGB 信息，并将纯色图拼接在上方、原图拼接在下方，最终输出为 PNG。
+命令行工具：读取一张 PNG/JPG/JPEG 图片，分析其颜色，生成一张与原图同尺寸的纯色图，在纯色图上打印 RGB 信息，并将纯色图拼接在上方、原图拼接在下方，最终输出为 PNG。
 
 ## 安装依赖
 
@@ -14,6 +14,12 @@ pip install -r requirements.txt
 
 ```bash
 python3 main.py input.png output.png --method average
+```
+
+输入也可以是 JPG / JPEG，例如：
+
+```bash
+python3 main.py input.jpg output.png --method average
 ```
 
 也可以使用最多像素颜色：
@@ -30,7 +36,7 @@ python3 main.py input.png output.png --method average --background 255,255,255
 
 ## 参数说明
 
-- `input`：输入 PNG 路径
-- `output`：输出 PNG 路径
+- `input`：输入图片路径，支持 `PNG`、`JPG`、`JPEG`
+- `output`：输出图片路径，固定要求为 `PNG`
 - `--method`：取色方式，支持 `average` 和 `dominant`
 - `--background`：透明图铺底颜色，格式为 `R,G,B`
