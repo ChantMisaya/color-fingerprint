@@ -1,2 +1,1 @@
 # color-fingerprint
-# color-fingerprint
