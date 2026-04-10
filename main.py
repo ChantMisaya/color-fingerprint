@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 from collections import Counter
 from pathlib import Path
-from typing import Iterable
+from typing import BinaryIO, Iterable
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -14,6 +14,8 @@ FONT_CANDIDATES = (
     "/Library/Fonts/Arial.ttf",
     "/System/Library/Fonts/SFNS.ttf",
 )
+SUPPORTED_INPUT_SUFFIXES = {".png", ".jpg", ".jpeg"}
+SUPPORTED_METHODS = ("average", "dominant")
 
 
 def parse_args() -> argparse.Namespace:
@@ -27,7 +29,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("output", type=Path, help="Output PNG image path")
     parser.add_argument(
         "--method",
-        choices=("average", "dominant"),
+        choices=SUPPORTED_METHODS,
         default="average",
         help="Color extraction method: average or dominant",
     )
@@ -52,6 +54,21 @@ def parse_rgb(value: str) -> tuple[int, int, int]:
         raise argparse.ArgumentTypeError("RGB must be in the format R,G,B with 0-255")
 
     return tuple(parts)  # type: ignore[return-value]
+
+
+def validate_input_path(path: Path) -> None:
+    if path.suffix.lower() not in SUPPORTED_INPUT_SUFFIXES:
+        raise ValueError("Input file must be a PNG, JPG, or JPEG image")
+
+
+def validate_output_path(path: Path) -> None:
+    if path.suffix.lower() != ".png":
+        raise ValueError("Output file must be a PNG image")
+
+
+def validate_method(method: str) -> None:
+    if method not in SUPPORTED_METHODS:
+        raise ValueError(f"Method must be one of: {', '.join(SUPPORTED_METHODS)}")
 
 
 def flatten_to_rgb(image: Image.Image, background: tuple[int, int, int]) -> Image.Image:
@@ -166,31 +183,51 @@ def combine_images(top: Image.Image, bottom: Image.Image) -> Image.Image:
     return combined
 
 
-def main() -> None:
-    args = parse_args()
-    background = parse_rgb(args.background)
+def render_fingerprint_image(
+    source: Image.Image, method: str, background: tuple[int, int, int]
+) -> Image.Image:
+    validate_method(method)
 
-    if args.input.suffix.lower() not in {".png", ".jpg", ".jpeg"}:
-        raise SystemExit("Input file must be a PNG, JPG, or JPEG image")
-
-    if args.output.suffix.lower() != ".png":
-        raise SystemExit("Output file must be a PNG image")
-
-    with Image.open(args.input) as source:
-        original_rgb = flatten_to_rgb(source, background)
-
-    pixels = list(original_rgb.getdata())
-    if args.method == "average":
+    original_rgb = flatten_to_rgb(source, background)
+    pixels = list(original_rgb.get_flattened_data())
+    if method == "average":
         extracted_color = average_color(pixels)
     else:
         extracted_color = dominant_color(pixels)
 
     label = "#{:02X}{:02X}{:02X}".format(*extracted_color)
     color_panel = build_color_panel(original_rgb.size, extracted_color, label)
-    final_image = combine_images(color_panel, original_rgb)
+    return combine_images(color_panel, original_rgb)
 
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    final_image.save(args.output, format="PNG")
+
+def process_image(
+    input_path: Path, output_path: Path, method: str = "average", background: tuple[int, int, int] = (255, 255, 255)
+) -> None:
+    validate_input_path(input_path)
+    validate_output_path(output_path)
+
+    with Image.open(input_path) as source:
+        final_image = render_fingerprint_image(source, method=method, background=background)
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    final_image.save(output_path, format="PNG")
+
+
+def process_image_stream(
+    source_stream: BinaryIO, method: str = "average", background: tuple[int, int, int] = (255, 255, 255)
+) -> Image.Image:
+    with Image.open(source_stream) as source:
+        return render_fingerprint_image(source, method=method, background=background)
+
+
+def main() -> None:
+    args = parse_args()
+    background = parse_rgb(args.background)
+
+    try:
+        process_image(args.input, args.output, method=args.method, background=background)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
 
 
 if __name__ == "__main__":

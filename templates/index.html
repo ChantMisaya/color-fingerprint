@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Color Fingerprint</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <p class="eyebrow">LOCAL IMAGE TOOL</p>
+        <h1>Color Fingerprint</h1>
+        <p class="intro">
+          选择本地图片，决定取色方式，然后把生成结果保存到你指定的位置和文件名。
+        </p>
+      </section>
+
+      <section class="panel">
+        <form id="process-form" class="form-panel">
+          <label class="field">
+            <span>输入图片</span>
+            <input id="image" name="image" type="file" accept=".png,.jpg,.jpeg,image/png,image/jpeg" required>
+          </label>
+
+          <label class="field">
+            <span>处理方式</span>
+            <select id="method" name="method">
+              <option value="average">颜色平均值</option>
+              <option value="dominant">颜色众数值</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>透明像素铺底颜色</span>
+            <input id="background" name="background" type="text" value="255,255,255" placeholder="255,255,255">
+          </label>
+
+          <div class="field">
+            <span>输出位置</span>
+            <div class="output-row">
+              <button id="pick-output" class="secondary" type="button">选择输出位置</button>
+              <div id="output-hint" class="hint">未选择，将在处理后使用浏览器默认下载方式。</div>
+            </div>
+          </div>
+
+          <button id="submit-button" class="primary" type="submit">生成并保存</button>
+        </form>
+
+        <aside class="status-panel">
+          <div class="status-card">
+            <div class="status-label">当前状态</div>
+            <div id="status-text" class="status-text">等待输入</div>
+          </div>
+          <div class="status-card">
+            <div class="status-label">说明</div>
+            <div class="status-note">
+              如果浏览器支持文件系统保存对话框，会先让你选择输出文件位置。
+              不支持时会自动下载结果 PNG。
+            </div>
+          </div>
+        </aside>
+      </section>
+    </main>
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+  </body>
+</html>
