@@ -5,8 +5,14 @@ const statusText = document.getElementById("status-text");
 const submitButton = document.getElementById("submit-button");
 const pickOutputButton = document.getElementById("pick-output");
 const outputHint = document.getElementById("output-hint");
+const previewImage = document.getElementById("preview-image");
+const previewEmpty = document.getElementById("preview-empty");
+const backgroundInput = document.getElementById("background");
 
 let outputHandle = null;
+let previewRequestId = 0;
+let previewObjectUrl = null;
+let previewController = null;
 
 function setStatus(message, isError = false) {
   statusText.textContent = message;
@@ -20,6 +26,77 @@ function fallbackDownload(blob, filename) {
   link.download = filename;
   link.click();
   URL.revokeObjectURL(objectUrl);
+}
+
+function clearPreview() {
+  if (previewObjectUrl) {
+    URL.revokeObjectURL(previewObjectUrl);
+    previewObjectUrl = null;
+  }
+
+  previewImage.removeAttribute("src");
+  previewImage.classList.remove("is-visible");
+  previewEmpty.hidden = false;
+}
+
+function showPreview(blob) {
+  if (previewObjectUrl) {
+    URL.revokeObjectURL(previewObjectUrl);
+  }
+
+  previewObjectUrl = URL.createObjectURL(blob);
+  previewImage.src = previewObjectUrl;
+  previewImage.classList.add("is-visible");
+  previewEmpty.hidden = true;
+}
+
+async function refreshPreview() {
+  const file = imageInput.files[0];
+  if (!file) {
+    clearPreview();
+    return;
+  }
+
+  if (previewController) {
+    previewController.abort();
+  }
+
+  previewController = new AbortController();
+  const currentRequestId = ++previewRequestId;
+  const formData = new FormData();
+  formData.append("image", file);
+  formData.append("method", methodSelect.value);
+  formData.append("background", backgroundInput.value);
+
+  setStatus("正在生成预览...");
+
+  try {
+    const response = await fetch("/api/preview", {
+      method: "POST",
+      body: formData,
+      signal: previewController.signal,
+    });
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload.error || "预览生成失败");
+    }
+
+    const blob = await response.blob();
+    if (currentRequestId !== previewRequestId) {
+      return;
+    }
+
+    showPreview(blob);
+    setStatus("预览已更新。");
+  } catch (error) {
+    if (error.name === "AbortError") {
+      return;
+    }
+
+    clearPreview();
+    setStatus(error.message || "预览生成失败", true);
+  }
 }
 
 async function saveWithPicker(blob, suggestedName) {
@@ -84,7 +161,11 @@ pickOutputButton.addEventListener("click", async () => {
 imageInput.addEventListener("change", () => {
   outputHandle = null;
   outputHint.textContent = "如需指定保存位置，请重新点击“选择输出位置”。";
+  refreshPreview();
 });
+
+methodSelect.addEventListener("change", refreshPreview);
+backgroundInput.addEventListener("change", refreshPreview);
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
