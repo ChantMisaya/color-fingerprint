@@ -48,6 +48,21 @@
         </form>
 
         <aside class="status-panel">
+          <div class="status-card histogram-card">
+            <div class="status-label">色相直方图</div>
+            <div class="histogram-panel">
+              <div id="histogram-empty" class="histogram-empty">上传图片后会在这里显示色相分布。</div>
+              <div id="hue-histogram" class="histogram-chart" aria-label="图片色相直方图"></div>
+              <div class="histogram-axis" aria-hidden="true">
+                <span>0°</span>
+                <span>120°</span>
+                <span>240°</span>
+                <span>360°</span>
+              </div>
+              <div id="histogram-summary" class="histogram-summary">等待输入</div>
+            </div>
+          </div>
+
           <div class="status-card preview-card">
             <div class="status-label">预览</div>
             <div class="preview-frame">

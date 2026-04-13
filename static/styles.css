@@ -92,9 +92,65 @@ h1 {
   padding: clamp(20px, 3vw, 24px);
 }
 
+.histogram-card,
 .preview-card {
   gap: 14px;
+}
+
+.preview-card {
   overflow: hidden;
+}
+
+.histogram-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.histogram-chart {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(72, minmax(0, 1fr));
+  align-items: end;
+  gap: 1px;
+  height: 180px;
+  padding: 14px 14px 0;
+  border: 1px dashed rgba(31, 26, 23, 0.16);
+  border-radius: 20px;
+  background:
+    linear-gradient(to top, rgba(31, 26, 23, 0.16) 1px, transparent 1px) 0 100% / 100% 25%,
+    rgba(255, 255, 255, 0.42);
+  overflow: hidden;
+}
+
+.histogram-chart[hidden] {
+  display: none;
+}
+
+.histogram-bar {
+  align-self: end;
+  width: 100%;
+  min-height: 2px;
+  border-radius: 3px 3px 0 0;
+  background: var(--bar-color, #999);
+}
+
+.histogram-axis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  align-items: center;
+  padding: 0 14px;
+  font-size: 12px;
+  line-height: 1;
+  color: rgba(31, 26, 23, 0.6);
+}
+
+.histogram-axis span:nth-child(2),
+.histogram-axis span:nth-child(3) {
+  text-align: center;
+}
+
+.histogram-axis span:last-child {
+  text-align: right;
 }
 
 .field {
@@ -134,10 +190,23 @@ select {
 }
 
 .hint,
-.status-note {
+.status-note,
+.histogram-summary {
   font-size: 14px;
   line-height: 1.6;
   color: var(--muted);
+}
+
+.histogram-empty {
+  display: grid;
+  place-items: center;
+  height: 180px;
+  padding: 20px;
+  border: 1px dashed rgba(31, 26, 23, 0.16);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.42);
+  color: var(--muted);
+  text-align: center;
 }
 
 .preview-empty {
